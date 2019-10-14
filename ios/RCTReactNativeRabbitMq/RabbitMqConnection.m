@@ -71,9 +71,9 @@ RCT_EXPORT_METHOD(connect)
         heartbeat = self.config[@"syncTimeout"];
     }
 
-    Boolean verifyPeer = YES;
+    Boolean verifyPeer = NO;
     if ([self.config objectForKey:@"verifyPeer"] != nil && [[self.config objectForKey:@"verifyPeer"] boolValue]) {
-        verifyPeer = NO;
+        verifyPeer = YES;
     }
 
     NSString *peerName = @"";
