@@ -1,12 +1,13 @@
 #import "RabbitMqConnection.h"
 
 @interface RabbitMqConnection ()
-    @property (nonatomic, readwrite) NSDictionary *config;
-    @property (nonatomic, readwrite) RMQConnection *connection;
-    @property (nonatomic, readwrite) id<RMQChannel> channel;
-    @property (nonatomic, readwrite) bool connected;
-    @property (nonatomic, readwrite) NSMutableArray *queues;
-    @property (nonatomic, readwrite) NSMutableArray *exchanges;
+@property (nonatomic, readwrite) NSDictionary *config;
+@property (nonatomic, readwrite) RMQConnection *connection;
+@property (nonatomic, readwrite) RMQTLSOptions *tlsOptions;
+@property (nonatomic, readwrite) id<RMQChannel> channel;
+@property (nonatomic, readwrite) bool connected;
+@property (nonatomic, readwrite) NSMutableArray *queues;
+@property (nonatomic, readwrite) NSMutableArray *exchanges;
 @end
 
 @implementation RabbitMqConnection
@@ -28,6 +29,8 @@ RCT_EXPORT_METHOD(initialize:(NSDictionary *) config)
 RCT_EXPORT_METHOD(connect)
 {
 
+    NSLog(@"Connecting...");
+
     RabbitMqDelegateLogger *delegate = [[RabbitMqDelegateLogger alloc] init];
 
     NSString *protocol = @"amqp";
@@ -35,22 +38,71 @@ RCT_EXPORT_METHOD(connect)
         protocol = @"amqps";
     }
 
-    NSString *uri = [NSString stringWithFormat:@"%@://%@:%@@%@:%@/%@", protocol, self.config[@"username"], self.config[@"password"], self.config[@"host"], self.config[@"port"], self.config[@"virtualhost"]];        
-    
-  
-    self.connection = [[RMQConnection alloc] initWithUri:uri 
-                                              channelMax:@65535 
-                                                frameMax:@(RMQFrameMax) 
-                                               heartbeat:@10
-										  connectTimeout:@15
-											 readTimeout:@30
-										    writeTimeout:@30
-                                             syncTimeout:@10 
+    NSString *uri = @"";
+
+    if ([self.config objectForKey:@"username"] != nil && [self.config objectForKey:@"password"] != nil) {
+        uri = [NSString stringWithFormat:@"%@://%@:%@@%@:%@/%@", protocol, self.config[@"username"], self.config[@"password"], self.config[@"host"], self.config[@"port"], self.config[@"virtualhost"]];
+    } else {
+        uri = [NSString stringWithFormat:@"%@://%@:%@/%@", protocol, self.config[@"host"], self.config[@"port"], self.config[@"virtualhost"]];
+    }
+
+    NSNumber *heartbeat = @10;
+    if ([self.config objectForKey:@"hearbeat"] != nil && [[self.config objectForKey:@"heartbeat"] integerValue]) {
+        heartbeat = self.config[@"hearbeat"];
+    }
+
+    NSNumber *connectTimeout = @15;
+    if ([self.config objectForKey:@"connectTimeout"] != nil && [[self.config objectForKey:@"connectTimeout"] integerValue]) {
+        heartbeat = self.config[@"connectTimeout"];
+    }
+
+    NSNumber *readTimeout = @30;
+    if ([self.config objectForKey:@"readTimeout"] != nil && [[self.config objectForKey:@"readTimeout"] integerValue]) {
+        heartbeat = self.config[@"readTimeout"];
+    }
+
+    NSNumber *writeTimeout = @30;
+    if ([self.config objectForKey:@"writeTimeout"] != nil && [[self.config objectForKey:@"writeTimeout"] integerValue]) {
+        heartbeat = self.config[@"writeTimeout"];
+    }
+
+    NSNumber *syncTimeout = @20;
+    if ([self.config objectForKey:@"syncTimeout"] != nil && [[self.config objectForKey:@"syncTimeout"] integerValue]) {
+        heartbeat = self.config[@"syncTimeout"];
+    }
+
+    Boolean verifyPeer = YES;
+    if ([self.config objectForKey:@"verifyPeer"] != nil && [[self.config objectForKey:@"verifyPeer"] boolValue]) {
+        verifyPeer = NO;
+    }
+
+    NSString *peerName = @"";
+    if ([self.config objectForKey:@"peerName"] != nil && [[self.config objectForKey:@"peerName"] stringValue]) {
+        peerName = self.config[@"peerName"];
+    }
+
+    NSData *pkcs12DecodeData = [[NSData alloc] initWithBase64EncodedString:self.config[@"pkcs12"] options:0];
+
+    self.tlsOptions = [[RMQTLSOptions alloc] initWithPeerName:self.config[@"host"]
+                                            verifyPeer:verifyPeer
+                                                pkcs12:pkcs12DecodeData
+                                        pkcs12Password:self.config[@"pkcs12Password"]];
+    NSLog(@"RabbitMQ URI: %@", uri);
+
+    self.connection = [[RMQConnection alloc] initWithUri:uri
+                                              tlsOptions:self.tlsOptions
+                                              channelMax:@65535
+                                                frameMax:@(RMQFrameMax)
+                                               heartbeat:heartbeat
+                                          connectTimeout:connectTimeout
+                                             readTimeout:readTimeout
+                                            writeTimeout:writeTimeout
+                                             syncTimeout:syncTimeout
                                                 delegate:delegate
                                            delegateQueue:dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0)];
 
-    [self.connection start:^{ 
-        
+    [self.connection start:^{
+
         self.connected = true;
 
         [EventEmitter emitEventWithName:@"RabbitMqConnectionEvent" body:@{@"name": @"connected"}];
@@ -67,7 +119,7 @@ RCT_EXPORT_METHOD(close)
 
 RCT_EXPORT_METHOD(addQueue:(NSDictionary *) config arguments:(NSDictionary *)arguments)
 {
-    if (self.connected){ 
+    if (self.connected){
         self.channel = [self.connection createChannel];
 
         RabbitMqQueue *queue = [[RabbitMqQueue alloc] initWithConfig:config channel:self.channel];
@@ -85,7 +137,7 @@ RCT_EXPORT_METHOD(bindQueue:(NSString *)exchange_name queue_name:(NSString *)que
     if (queue_id != nil && exchange_id != nil){
         [queue_id bind:exchange_id routing_key:routing_key];
     }
-    
+
 }
 
 RCT_EXPORT_METHOD(unbindQueue:(NSString *)exchange_name queue_name:(NSString *)queue_name routing_key:(NSString *)routing_key)
@@ -120,7 +172,7 @@ RCT_EXPORT_METHOD(addExchange:(NSDictionary *) config)
 {
 
     RMQExchangeDeclareOptions options = RMQExchangeDeclareNoOptions;
-    
+
     if ([config objectForKey:@"passive"] != nil && [[config objectForKey:@"passive"] boolValue]){
         options = options | RMQExchangeDeclarePassive;
     }
@@ -141,7 +193,7 @@ RCT_EXPORT_METHOD(addExchange:(NSDictionary *) config)
         options = options | RMQExchangeDeclareNoWait;
     }
 
-    
+
     NSString *type = [config objectForKey:@"type"];
 
     RMQExchange *exchange = nil;
@@ -152,13 +204,13 @@ RCT_EXPORT_METHOD(addExchange:(NSDictionary *) config)
     }else if ([type isEqualToString:@"topic"]) {
         exchange = [self.channel topic:[config objectForKey:@"name"] options:options];
     }
-    
+
     if (exchange != nil){
         [self.exchanges addObject:exchange];
     }
 
 }
- 
+
 RCT_EXPORT_METHOD(publishToExchange:(NSString *)message exchange_name:(NSString *)exchange_name routing_key:(NSString *)routing_key message_properties:(NSDictionary *)message_properties)
 {
 
@@ -210,7 +262,7 @@ RCT_EXPORT_METHOD(publishToExchange:(NSString *)message exchange_name:(NSString 
 
 RCT_EXPORT_METHOD(deleteExchange:(NSString *)exchange_name)
 {
-   id exchange_id = [self findExchange:exchange_name];
+    id exchange_id = [self findExchange:exchange_name];
 
     if (exchange_id != nil){
         [exchange_id delete];
