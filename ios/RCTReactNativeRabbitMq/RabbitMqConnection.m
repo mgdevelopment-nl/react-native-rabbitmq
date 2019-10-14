@@ -53,22 +53,22 @@ RCT_EXPORT_METHOD(connect)
 
     NSNumber *connectTimeout = @15;
     if ([self.config objectForKey:@"connectTimeout"] != nil && [[self.config objectForKey:@"connectTimeout"] integerValue]) {
-        heartbeat = self.config[@"connectTimeout"];
+        connectTimeout = self.config[@"connectTimeout"];
     }
 
     NSNumber *readTimeout = @30;
     if ([self.config objectForKey:@"readTimeout"] != nil && [[self.config objectForKey:@"readTimeout"] integerValue]) {
-        heartbeat = self.config[@"readTimeout"];
+        readTimeout = self.config[@"readTimeout"];
     }
 
     NSNumber *writeTimeout = @30;
     if ([self.config objectForKey:@"writeTimeout"] != nil && [[self.config objectForKey:@"writeTimeout"] integerValue]) {
-        heartbeat = self.config[@"writeTimeout"];
+        writeTimeout = self.config[@"writeTimeout"];
     }
 
     NSNumber *syncTimeout = @20;
     if ([self.config objectForKey:@"syncTimeout"] != nil && [[self.config objectForKey:@"syncTimeout"] integerValue]) {
-        heartbeat = self.config[@"syncTimeout"];
+        syncTimeout = self.config[@"syncTimeout"];
     }
 
     Boolean verifyPeer = NO;
@@ -113,6 +113,8 @@ RCT_EXPORT_METHOD(connect)
 RCT_EXPORT_METHOD(close)
 {
     [self.connection close];
+
+    self.connected = false;
 
     [EventEmitter emitEventWithName:@"RabbitMqConnectionEvent" body:@{@"name": @"disconnected"}];
 }
