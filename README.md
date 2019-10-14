@@ -83,10 +83,14 @@ The certificate was signed by Let's Encrypt, in iOS a self-signed certificate wi
 
 The only way the #pkc12 worked for me was to include the leaf certificate, the chain (given by Let's Encrypt), and a CA bundle created by the Root certificate and Intermediate certificate which signed my certificate.
  
-```
-$ openssl pkcs12 -export -out certificate.pfx -inkey private_key.pem -in leaf_certificate.pem -certfile chain.pem -certfile ca.bundle.pem
+```bash
+openssl pkcs12 -export -out certificate.pfx -inkey private_key.pem -in leaf_certificate.pem -certfile chain.pem -certfile ca.bundle.pem
 ```
 
+Convert to base64:
+```bash
+cat certificate.pfx | base64
+```
 
 
 
@@ -102,7 +106,7 @@ const connection = new Connection({
     virtualhost: 'vhost',
     ttl: 10000, // Message time to live
     ssl: true, // Enable ssl connection, make sure the port is 5671 or an other ssl port
-    verifyPeer: true, // Wether or not to verify the peer
+    verifyPeer: true, // Whether or not to verify the peer
     pkcs12: '...', // We expect a base64 encoded #pkcs12 file
     pkcs12Password: 'myPassword', // The password used for the #pkc12 file
 });
