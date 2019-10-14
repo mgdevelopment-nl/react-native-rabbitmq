@@ -61,6 +61,8 @@ RCT_EXPORT_METHOD(connect)
 RCT_EXPORT_METHOD(close)
 {
     [self.connection close];
+
+    [EventEmitter emitEventWithName:@"RabbitMqConnectionEvent" body:@{@"name": @"disconnected"}];
 }
 
 RCT_EXPORT_METHOD(addQueue:(NSDictionary *) config arguments:(NSDictionary *)arguments)
