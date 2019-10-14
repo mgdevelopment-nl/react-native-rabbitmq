@@ -1,5 +1,8 @@
 ## Todo
 
+- Add X509 client certificate authentication for Android
+- Make connecting using X509 certificates optional
+
 ## Installation
 
 ## IOS
