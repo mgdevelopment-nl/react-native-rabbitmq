@@ -80,51 +80,6 @@ npm install react-native-rabbitmq --save
 
 react-native link
 
-## Setup RabbitMQ to use X509 Client Certificate authentication
-
-Enable plugin 'rabbitmq_auth_mechanism_ssl':
-```bash
-rabbitmq-plugins enable rabbitmq_auth_mechanism_ssl
-```
-
-Edit the configuration (example):
-
-```
-# Make sure to setup the ssl listener port
-listeners.ssl.default = 5671
-
-# Use EXTERNAL as auth_mechanism:
-auth_mechanisms.1 = EXTERNAL
-
-# Update the ssl_options
-ssl_options.verify               = verify_peer
-ssl_options.fail_if_no_peer_cert = false
-ssl_options.cacertfile           = /etc/rabbitmq/ca.bundle.pem
-ssl_options.certfile             = /etc/rabbitmq/cert.pem
-ssl_options.keyfile              = /etc/rabbitmq/privkey.pem
-
-# Optional configure the allowed ssl versions
-ssl_options.versions.1           = tlsv1.2
-```
-
-For more information: https://www.rabbitmq.com/ssl.html
-
-## How to create #PKCS12 file
-While testing (on iOS) I got the connection working converting a certificate to a binary pfx file.
-The certificate was signed by Let's Encrypt, in iOS a self-signed certificate will not work.
-
-The only way the #pkc12 worked for me was to include the leaf certificate, the chain (given by Let's Encrypt), and a CA bundle created by the Root certificate and Intermediate certificate which signed my certificate.
- 
-```bash
-openssl pkcs12 -export -out certificate.pfx -inkey private_key.pem -in leaf_certificate.pem -certfile chain.pem -certfile ca.bundle.pem
-```
-
-Convert to base64:
-```bash
-cat certificate.pfx | base64
-```
-
-
 
 ## Usage
 ```
@@ -192,4 +147,50 @@ if (connection.isConnected()) {
     exchange.publish(data, routing_key, properties)
 }
 
+```
+
+## Setup RabbitMQ to use X509 Client Certificate authentication
+
+Enable plugin 'rabbitmq_auth_mechanism_ssl':
+```bash
+rabbitmq-plugins enable rabbitmq_auth_mechanism_ssl
+```
+
+Edit the configuration (example):
+
+```
+# Make sure to setup the ssl listener port
+listeners.ssl.default = 5671
+
+# Use EXTERNAL as auth_mechanism:
+auth_mechanisms.1 = EXTERNAL
+
+# Update the ssl_options
+ssl_options.verify               = verify_peer
+ssl_options.fail_if_no_peer_cert = false
+ssl_options.cacertfile           = /etc/rabbitmq/ca.bundle.pem
+ssl_options.certfile             = /etc/rabbitmq/cert.pem
+ssl_options.keyfile              = /etc/rabbitmq/privkey.pem
+
+# Optional configure the allowed tls versions
+ssl_options.versions.1           = tlsv1.2
+```
+
+For more information: https://www.rabbitmq.com/ssl.html
+
+## How to create #PKCS12 file
+While testing (on iOS) I got the connection working converting a certificate to a binary pfx file.
+The certificate was signed by Let's Encrypt, in iOS a self-signed certificate will not work.
+
+The only way the #pkc12 worked for me was to include the leaf certificate, the chain (given by Let's Encrypt), and a CA bundle created by the Root certificate and Intermediate certificate which signed my certificate.
+
+The root certificate and Intermediate certificates I got from: https://letsencrypt.org/certificates/
+ 
+```bash
+openssl pkcs12 -export -out certificate.pfx -inkey private_key.pem -in leaf_certificate.pem -certfile chain.pem -certfile ca.bundle.pem
+```
+
+Convert to base64:
+```bash
+cat certificate.pfx | base64
 ```
