@@ -147,7 +147,7 @@ connection.on('connected', (event) => {
     });
 });
 
-if (connection.connected) {
+if (connection.isConnected()) {
     const message = 'test';
     const routing_key = '';
     const properties = {
